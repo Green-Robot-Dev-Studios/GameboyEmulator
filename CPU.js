@@ -79,6 +79,7 @@ class Z80 { // Z80 CPU - Intel 8080 hybrid -> actual model is Sharp LR35902
         0x01: { bytes: 3, cycles: 3 },
         0x02: { bytes: 1, cycles: 2 },
         0x03: { bytes: 1, cycles: 2 },
+        0x03: { bytes: 1, cycles: 1 },
     }
 
     OP = {
@@ -87,6 +88,7 @@ class Z80 { // Z80 CPU - Intel 8080 hybrid -> actual model is Sharp LR35902
         0x01: (b) => { this.B = b[1]; this.C = b[0]; },
         0x02: (b) => { this.MEM[this.BC] = this.A; },
         0x03: (b) => { this.BC += 1 },
+        0x04: (b) => {  },
     }
 }
 
