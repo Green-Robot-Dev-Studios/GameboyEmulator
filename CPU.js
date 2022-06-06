@@ -1,6 +1,6 @@
-class Z80 { // Z80 CPU - Intel 8080 hybrid -> actual model is Sharp LR35902
+export default class CPU { // Z80 CPU - Intel 8080 hybrid -> actual model is Sharp LR35902
     constructor(MMU) {
-        // accumulator & flag
+        // Accumulator & flag
         this._A = 0;
         this._F = 0;
 
@@ -11,12 +11,14 @@ class Z80 { // Z80 CPU - Intel 8080 hybrid -> actual model is Sharp LR35902
         this._H = 0;
         this._L = 0;
 
-        //stack-pointer & program counter
+        // Stack-pointer & program counter
         this._SP = 0;
-        this._PC = 0; 
+        this._PC = 0x0100;
 
         this.MMU = MMU;
         this.MEM = MMU.MEM;
+
+        this.STOP = false;
     }
     
     get A() { return this._A; }
@@ -83,12 +85,84 @@ class Z80 { // Z80 CPU - Intel 8080 hybrid -> actual model is Sharp LR35902
     }
 
     OP = {
-        // 0x00
-        0x00: (b) => {  },
-        0x01: (b) => { this.B = b[1]; this.C = b[0]; },
+        // Router for 16-bit extended instruction set (this instruction set has no immediate values)
+        0xCB: (b) => { EXT_OP[b[0]]() },
+
+        // Special Operations
+        0x00: (b) => { this.STOP = true; },
+
+        // Load Immediate
+        0x01: (b) => { this.BC = (b[1] << 8) | b[0]; },
+        0x11: (b) => { this.DE = (b[1] << 8) | b[0]; },
+        0x21: (b) => { this.HL = (b[1] << 8) | b[0]; },
+        0x31: (b) => { this.SP = (b[1] << 8) | b[0]; },
+
+        // Load register into memory location specified by another register
         0x02: (b) => { this.MEM[this.BC] = this.A; },
+        0x12: (b) => { this.MEM[this.DE] = this.A; },
+        0x22: (b) => { this.MEM[this.HL] = this.A; this.HL += 1; },
+        0x32: (b) => { this.MEM[this.HL] = this.A; this.HL -= 1; },
+
+        // Load
+        0x06: (b) => { this.B = b[0]; },
+        0x16: (b) => { this.D = b[0]; },
+        0x26: (b) => { this.H = b[0]; },
+        0x36: (b) => { this.MEM[this.HL] = b[0]; },
+
+        // Increment and Decrement
         0x03: (b) => { this.BC += 1 },
-        0x04: (b) => {  },
+        0x13: (b) => { this.DE += 1 },
+        0x23: (b) => { this.HL += 1 },
+        0x33: (b) => { this.SP += 1 },
+
+        0x04: (b) => { this.B += 1 },
+        0x14: (b) => { this.D += 1 },
+        0x24: (b) => { this.H += 1 },
+        0x34: (b) => { this.MEM[this.HL] += 1 },
+
+        0x05: (b) => { this.B -= 1 },
+        0x15: (b) => { this.D -= 1 },
+        0x25: (b) => { this.H -= 1 },
+        0x35: (b) => { this.MEM[this.HL] -= 1 },
+
+        // Jump on flag
+        0x20: (b) => { b[0] = sign(b[0]); if (!this.ZF) this.SP += b[0]; },
+        0x30: (b) => { b[0] = sign(b[0]); if (!this.CF) this.SP += b[0]; },
+        0x28: (b) => { b[0] = sign(b[0]); if (this.ZF) this.SP += b[0]; },
+        0x38: (b) => { b[0] = sign(b[0]); if (this.CF) this.SP += b[0]; },
+
+        // Jump relative
+        0x18: (b) => { b[0] = sign(b[0]); this.SP += b[0]; },
+    }
+
+    EXT_OP = {
+        0x00: () => {  },
+    }
+
+    execute() {
+        if (this.STOP) return;
+
+        let currentInstruction = this.PC;
+        let instruction = this.MEM[currentInstruction];
+        if (!this.TIMINGS[instruction] || !this.OP[instruction]) return;
+
+        let size = this.TIMINGS[instruction].bytes;
+        let parameters = [];
+        if (size > 1) {
+            parameters = this.MEM.slice(currentInstruction + 1, currentInstruction + size);
+        }
+
+        this.OP[instruction](parameters);
+
+        this.PC += size;
+
+        this.execute();
+    }
+
+    start() {
+        this.execute();
+    
+        this.debug();
     }
 }
 
@@ -100,8 +174,6 @@ function bin(n) {
     return "0b" + n.toString(2).toUpperCase();
 }
 
-export function start(mmu) {
-    var cpu = new Z80(mmu);
-
-    cpu.debug();
+function sign(b) {
+    return (b >= 128) ? b - 256 : b;
 }

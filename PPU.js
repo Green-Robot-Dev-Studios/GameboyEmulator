@@ -1,13 +1,13 @@
-//init screen
+// Init screen
 const WIDTH = 160;
 const HEIGHT = 144;
 
-var screen = document.getElementById("screen");
-var ctx = screen.getContext("2d");
+let screen = document.getElementById("screen");
+let ctx = screen.getContext("2d");
 ctx.fillStyle = "black";
 ctx.fillRect(0, 0, screen.width, screen.height);
 
-// puts pixel x, y to screen with color
+// Puts pixel x, y to screen with color
 function p(x, y, colour) {
     switch (colour) {
         case 0:
@@ -34,7 +34,6 @@ function testPrint() {
         for (var j = 0; j < HEIGHT; j++) {
             p(i, j, Math.round(Math.random()*4)); //print noise
         }
-        
     }
 }
 testPrint();
